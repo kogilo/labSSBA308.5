@@ -13,7 +13,9 @@
  - The data you will use is provided below.
 - You will be provided with four different types of data:
 
-- A `CourseInfo` object, which looks like this:
+## Part 1: Data Structures
+
+- **CourseInfo**– Information about the course (`course ID and name`).
 
 ```javascript
 {
@@ -22,7 +24,7 @@
 }
 ```
 
-- An `AssignmentGroup` object, which looks like this:
+- **AssignmentGroup** – A group of assignments related to the course, including details like `assignment names`, `due dates`, and `total possible points`.
 
 ```javascript
 {
@@ -49,7 +51,7 @@
 }
 ```
 
-- An array of LearnerSubmission objects, which each look like this:
+- **LearnerSubmissions** – Data from students, showing their submissions for the assignments (`submission date` and `score`).
 
 ```javascript
 {
@@ -94,3 +96,100 @@
 - Additionally, if the `learner’s submission is late `(submitted_at is past due_at), `deduct 10 percent` of the total points possible from their score for that assignment.
 - Create a function named `getLearnerData()` that accepts these values as parameters, in the order listed: (CourseInfo, AssignmentGroup, [LearnerSubmission]), and returns the formatted result, which should be an `array of objects` as described above.
 You may use as many helper functions as you see fit.
+
+
+## Part 2: Validation and Utility Functions
+
+1. `validateAssignmentGroup` – Checks if the `AssignmentGroup` belongs to the `CourseInfo`. It compares `AssignmentGroup.course_id` with `CourseInfo.id`. If they don't match, it throws an error.
+
+```javascript
+
+function validateAssignmentGroup(course, AssignmentGroup) {
+    if (AssignmentGroup.course_id !== course.id) {
+        throw new Error(`Assignment group does not belong to the provided course.`);
+    }
+}
+
+```
+
+2. `validateLearnerSubmissions` – Ensures that the `score` in each submission is a `number` and is not `invalid (NaN)`.
+
+```javascript
+function validateLearnerSubmissions(submission) {
+    if (typeof submission.score !== "number" || isNaN(submission.score)) {
+        throw new Error(`Invalid submission score data`);
+    }
+}
+
+```
+3. `applyLatePenalty` – Checks if a submission is `late` and applies a `10% penalty` to the score if it is submitted after the due date.
+
+```javascript
+
+function applyLatePenalty(submissionDate, dueDate, score, pointsPossible) {
+    const submitted = new Date(submissionDate);
+    const due = new Date(dueDate);
+    
+    if (submitted > due) {
+        // 10% penalty for late submission
+        return score - 0.1 * pointsPossible;
+    }
+    return score;
+}
+
+```
+
+
+## Part 3: The Main Function
+
+- The `getLearnerData` function processes all of the learner submission data for a given course and assignment group.
+
+```javascript
+
+function getLearnerData(course, ag, submissions) {
+  /// Validate Assignment Group ///////
+  validateAssignmentGroup(course, ag);
+
+  ///// Iterate Through Submissions ////
+
+  submissions.forEach((submission) => {
+    const { learner_id, assignment_id, submission: { submitted_at, score } } = submission;
+    const assignment = AssignmentGroup.assignments.find(a => a.id === assignment_id);
+    
+    if (new Date(assignment.due_at) > new Date()) {
+        return; // Skip if the assignment is not due yet
+    }
+    
+    validateLearnerSubmissions(submission.submission);
+    
+    if (assignment.points_possible === 0) {
+        return;
+    }
+    
+    const adjustedScore = applyLatePenalty(submitted_at, assignment.due_at, score, assignment.points_possible);
+    
+    if (!learnerScores[learner_id]) {
+        learnerScores[learner_id] = {
+            id: learner_id,
+            totalPointsEarned: 0,
+            totalPointsPossible: 0
+        };
+    }
+    
+    learnerScores[learner_id].totalPointsEarned += adjustedScore;
+    learnerScores[learner_id].totalPointsPossible += assignment.points_possible;
+    
+    learnerScores[learner_id][assignment.id] = adjustedScore / assignment.points_possible;
+});
+
+////// Calculate Final Results  ////////
+Object.keys(learnerScores).forEach(learner_id => {
+    const learner = learnerScores[learner_id];
+    learner.avg = learner.totalPointsEarned / learner.totalPointsPossible;
+    result.push(learner);
+});
+return result;
+
+};
+
+```
